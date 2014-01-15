@@ -1,8 +1,7 @@
 /**
 
 Donations welcome:
-	BTC: 122MeuyZpYz4GSHNrF98e6dnQCXZfHJeGS
-	LTC: LY1L6M6yG26b4sRkLv4BbkmHhPn8GR5fFm
+	BTC: 1DnsGA8tpdsTJWpSgzZuXRPMqCEdU77xSn
 		~ Thank you!
 
 ------------
@@ -37,7 +36,7 @@ var CoinWidgetComCounter = 0;
 
 if (typeof CoinWidgetCom != 'object')
 var CoinWidgetCom = {
-	source: 'http://coinwidget.com/widget/'
+	source: './'
 	, config: []
 	, go :function(config) {
 		config = CoinWidgetCom.validate(config);
@@ -49,12 +48,10 @@ var CoinWidgetCom = {
 	, validate: function(config) {
 		var $accepted = [];
 		$accepted['currencies'] = ['bitcoin','litecoin'];
-		$accepted['counters'] = ['count','amount','hide'];
 		$accepted['alignment'] = ['al','ac','ar','bl','bc','br'];
 		if (!config.currency || !CoinWidgetCom.in_array(config.currency,$accepted['currencies']))
 			config.currency = 'bitcoin';
-		if (!config.counter || !CoinWidgetCom.in_array(config.counter,$accepted['counters']))
-			config.counter = 'count';
+		config.counter = 'hide';
 		if (!config.alignment || !CoinWidgetCom.in_array(config.alignment,$accepted['alignment']))
 			config.alignment = 'bl';
 		if (typeof config.qrcode != 'boolean')
@@ -77,6 +74,10 @@ var CoinWidgetCom = {
 		return config;
 	}
 	, init: function(){
+		var fullJsUrl= $('script[src$="coin.js"]').attr('src').replace("coin.js", "");
+		CoinWidgetCom.source = fullJsUrl;
+		console.log(fullJsUrl);
+
 		CoinWidgetCom.loader.stylesheet();
 		$(window).resize(function(){
 			CoinWidgetCom.window_resize();
@@ -92,15 +93,22 @@ var CoinWidgetCom = {
 		$containers = $("span[data-coinwidget-instance]");
 		$containers.each(function(i,v){
 			$config = CoinWidgetCom.config[$(this).attr('data-coinwidget-instance')];
-			$counter = $config.counter == 'hide'?'':('<span><img src="'+CoinWidgetCom.source+'icon_loading.gif" width="13" height="13" /></span>');
-			$button = '<a class="COINWIDGETCOM_BUTTON_'+$config.currency.toUpperCase()+'" href="#"><img src="'+CoinWidgetCom.source+'icon_'+$config.currency+'.png" /><span>'+$config.lbl_button+'</span></a>'+$counter;
+			$button = '<a class="COINWIDGETCOM_BUTTON_'+$config.currency.toUpperCase()+'" href="#"><img src="'+CoinWidgetCom.source+'icon_'+$config.currency+'.png" /><span>'+$config.lbl_button+'</span></a>';
 			$(this).html($button);
 			$(this).find('> a').unbind('click').click(function(e){
 				e.preventDefault();
 				CoinWidgetCom.show(this);
 			});
 		});
-		CoinWidgetCom.counters();
+		
+		if ( $config.auto_show) {
+			$addresses = [];
+			$.each(CoinWidgetCom.config,function(i,v){
+				$instance = i;
+				$config = v;
+				$("span[data-coinwidget-instance='"+i+"']").find('> a').click();
+			});
+		}
 	}
 	, window_resize: function(){
 		$.each(CoinWidgetCom.config,function(i,v){
@@ -149,42 +157,6 @@ var CoinWidgetCom = {
 			$(coin_window).stop().css({'z-index':99999999998,'top':$top,'left':$left});
 		}
 	}
-	, counter: []
-	, counters: function(){
-		$addresses = [];
-		$.each(CoinWidgetCom.config,function(i,v){
-			$instance = i;
-			$config = v;
-			if ($config.counter != 'hide')
-				$addresses.push($instance+'_'+$config.currency+'_'+$config.wallet_address);
-			else {
-				if ($config.auto_show) 
-					$("span[data-coinwidget-instance='"+i+"']").find('> a').click();
-			}
-		});
-		if ($addresses.length) {
-			CoinWidgetCom.loader.script({
-				id: 'COINWIDGETCOM_INFO'+Math.random()
-				, source: (CoinWidgetCom.source+'lookup.php?data='+$addresses.join('|'))
-				, callback: function(){
-					if (typeof COINWIDGETCOM_DATA == 'object') {
-						CoinWidgetCom.counter = COINWIDGETCOM_DATA;
-						$.each(CoinWidgetCom.counter,function(i,v){
-							$config = CoinWidgetCom.config[i];
-							if (!v.count || v == null) v = {count:0,amount:0};
-							$("span[data-coinwidget-instance='"+i+"']").find('> span').html($config.counter=='count'?v.count:(v.amount.toFixed($config.decimals)+' '+$config.lbl_amount));
-							if ($config.auto_show) {
-								$("span[data-coinwidget-instance='"+i+"']").find('> a').click();
-							}
-						});
-					}
-					if ($("span[data-coinwidget-instance] > span img").length > 0) {
-						setTimeout(function(){CoinWidgetCom.counters();},2500);
-					}
-				}
-			});
-		}
-	}
 	, show: function(obj) {
 		$instance = $(obj).parent().attr('data-coinwidget-instance');
 		$config = CoinWidgetCom.config[$instance];
@@ -194,29 +166,33 @@ var CoinWidgetCom = {
 
 			$sel = !navigator.userAgent.match(/iPhone/i)?'onclick="this.select();"':'onclick="prompt(\'Select all and copy:\',\''+$config.wallet_address+'\');"';
 
-			$html = ''
-				  + '<label>'+$config.lbl_address+'</label>'
-				  + '<input type="text" readonly '+$sel+'  value="'+$config.wallet_address+'" />'
-				  + '<a class="COINWIDGETCOM_CREDITS" href="http://coinwidget.com/" target="_blank">CoinWidget.com</a>'
-  				  + '<a class="COINWIDGETCOM_WALLETURI" href="'+$config.currency.toLowerCase()+':'+$config.wallet_address+'" target="_blank" title="Click here to send this address to your wallet (if your wallet is not compatible you will get an empty page, close the white screen and copy the address by hand)" ><img src="'+CoinWidgetCom.source+'icon_wallet.png" /></a>'
-  				  + '<a class="COINWIDGETCOM_CLOSER" href="javascript:;" onclick="CoinWidgetCom.hide('+$instance+');" title="Close this window">x</a>'
-  				  + '<img class="COINWIDGET_INPUT_ICON" src="'+CoinWidgetCom.source+'icon_'+$config.currency+'.png" width="16" height="16" title="This is a '+$config.currency+' wallet address." />'
-				  ;
-			if ($config.counter != 'hide') {
-				$html += '<span class="COINWIDGETCOM_COUNT">0<small>'+$config.lbl_count+'</small></span>'
-				  	  + '<span class="COINWIDGETCOM_AMOUNT end">0.00<small>'+$config.lbl_amount+'</small></span>'
-				  	  ;				  
-			}
+			$html = $('<div />');
+			$('<label />').text($config.lbl_address).appendTo($html);
+			$('<input />').attr('type', 'text').attr('readonly', true).val($config.wallet_address).appendTo($html);
+			$('<a />').addClass('COINWIDGETCOM_WALLETURI').attr({
+				'href': $config.currency.toLowerCase()+':'+$config.wallet_address,
+				'target': '_blank',
+				'title': 'Click here to send this address to your wallet (if your wallet is not compatible you will get an empty page, close the white screen and copy the address by hand'
+				})
+				.val($config.wallet_address).append (
+					$('<img />').attr('src', CoinWidgetCom.source+'icon_wallet.png')
+				).appendTo($html);
+			$('<a />').addClass('COINWIDGETCOM_CLOSER').attr('href', 'javascript:;').bind('click', function(){CoinWidgetCom.hide($instance);}).text('x').appendTo($html);
+			$('<img />').addClass('COINWIDGET_INPUT_ICON').attr('src', CoinWidgetCom.source+'icon_'+$config.currency+'.png').width(16).height(16).appendTo($html);
+
 			if ($config.qrcode) {
-				$html += '<img class="COINWIDGETCOM_QRCODE" data-coinwidget-instance="'+$instance+'" src="'+CoinWidgetCom.source+'icon_qrcode.png" width="16" height="16" />'
-				  	   + '<img class="COINWIDGETCOM_QRCODE_LARGE" src="'+CoinWidgetCom.source+'icon_qrcode.png" width="111" height="111" />'
-				  	   ;
+				$html.addClass('COINWIDGETCOM_WITH_QRCODE');
+				$('<img />').addClass('COINWIDGETCOM_QRCODE').attr({
+					'data-coinwidget-instance': $instance,
+					'src': CoinWidgetCom.source+'icon_qrcode.png'
+				}).width(16).height(16).appendTo($html);
+				$('<div />').addClass('COINWIDGETCOM_QRCODE_LARGE').appendTo($html);
 			}
-			var $div = $('<div></div>');
-			$('body').append($div);
-			$div.attr({
+
+			$('body').append($html);
+			$html.attr({
 				'id': 'COINWIDGETCOM_WINDOW_'+$instance
-			}).addClass('COINWIDGETCOM_WINDOW COINWIDGETCOM_WINDOW_'+$config.currency.toUpperCase()+' COINWIDGETCOM_WINDOW_'+$config.alignment.toUpperCase()).html($html).unbind('click').bind('click',function(){
+			}).addClass('COINWIDGETCOM_WINDOW COINWIDGETCOM_WINDOW_'+$config.currency.toUpperCase()+' COINWIDGETCOM_WINDOW_'+$config.alignment.toUpperCase()).unbind('click').bind('click',function(){
 				$(".COINWIDGETCOM_WINDOW").css({'z-index':99999999998});
 				$(this).css({'z-index':99999999999});
 			});
@@ -228,9 +204,20 @@ var CoinWidgetCom = {
 						$lrg.hide();
 						return;
 					}
-					$lrg.attr({
-						src: CoinWidgetCom.source +'qr/?address='+$config.wallet_address
-					}).show();
+					if ( !$lrg.attr('hasQrcode') ) {
+						CoinWidgetCom.loader.script({
+							id			: 'COINWIDGETCOM_JQUERY_QRCODE'
+							, source 	: CoinWidgetCom.source+'lib/jquery.qrcode.min.js'
+							, callback  : function(){
+								$lrg.qrcode({width: 120,height: 120, text: "bitcoin:"+$config.wallet_address}).show();
+								$lrg.attr('hasQrcode', 1);
+							}
+						});
+					}
+					else {
+						$lrg.show();
+					}
+					return;
 				}).bind('mouseleave',function(){
 					$lrg = $(this).parent().find('.COINWIDGETCOM_QRCODE_LARGE');
 					$lrg.hide();
